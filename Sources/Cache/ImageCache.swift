@@ -160,6 +160,8 @@ open class ImageCache {
     public let diskStorage: DiskStorage.Backend<Data>
     
     private let ioQueue: DispatchQueue
+
+    private let cacheDeserializerQueue: DispatchQueue
     
     /// Closure that defines the disk cache path from a given path and cacheName.
     public typealias DiskCachePathClosure = (URL, String) -> URL
@@ -177,8 +179,12 @@ open class ImageCache {
     {
         self.memoryStorage = memoryStorage
         self.diskStorage = diskStorage
+
         let ioQueueName = "com.onevcat.Kingfisher.ImageCache.ioQueue.\(UUID().uuidString)"
         ioQueue = DispatchQueue(label: ioQueueName)
+
+        let cacheDeserializerQueueName = "com.onevcat.Kingfisher.ImageCache.cacheDeserializerQueue.\(UUID().uuidString)"
+        cacheDeserializerQueue = DispatchQueue(label: cacheDeserializerQueueName, attributes: .concurrent)
 
         let notifications: [(Notification.Name, Selector)]
         #if !os(macOS) && !os(watchOS)
@@ -576,11 +582,14 @@ open class ImageCache {
     {
         let computedKey = key.computedKey(with: options.processor.identifier)
         let loadingQueue: CallbackQueue = options.loadDiskFileSynchronously ? .untouch : .dispatch(ioQueue)
+        let deserializerQueue: CallbackQueue = options.concurrentCacheDeserializing ? .dispatch(cacheDeserializerQueue) : .untouch
         loadingQueue.execute {
             do {
                 var image: KFCrossPlatformImage? = nil
                 if let data = try self.diskStorage.value(forKey: computedKey, extendingExpiration: options.diskCacheAccessExtendingExpiration) {
-                    image = options.cacheSerializer.image(with: data, options: options)
+                    deserializerQueue.execute {
+                        image = options.cacheSerializer.image(with: data, options: options)
+                    }
                 }
                 callbackQueue.execute { completionHandler(.success(image)) }
             } catch {
