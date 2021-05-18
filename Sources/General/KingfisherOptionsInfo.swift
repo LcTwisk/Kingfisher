@@ -147,6 +147,10 @@ public enum KingfisherOptionsInfoItem {
     /// If not set, the `DefaultCacheSerializer.default` will be used.
     case cacheSerializer(CacheSerializer)
 
+    /// If set, the disk storage deserialization will happen in a concurrent queue. By default, disk storage deserialization
+    /// happens in the IO queue, which is serial.
+    case concurrentCacheDeserializing(Bool)
+
     /// An `ImageModifier` is for modifying an image as needed right before it is used. If the image was fetched
     /// directly from the downloader, the modifier will run directly after the `ImageProcessor`. If the image is being
     /// fetched from a cache, the modifier will run after the `CacheSerializer`.
@@ -287,6 +291,7 @@ public struct KingfisherParsedOptionsInfo {
     public var processor: ImageProcessor = DefaultImageProcessor.default
     public var imageModifier: ImageModifier? = nil
     public var cacheSerializer: CacheSerializer = DefaultCacheSerializer.default
+    public var concurrentCacheDeserializing = false
     public var keepCurrentImageWhileLoading = false
     public var onlyLoadFirstFrame = false
     public var cacheOriginalImage = false
@@ -329,6 +334,7 @@ public struct KingfisherParsedOptionsInfo {
             case .processor(let value): processor = value
             case .imageModifier(let value): imageModifier = value
             case .cacheSerializer(let value): cacheSerializer = value
+            case .concurrentCacheDeserializing: concurrentCacheDeserializing = true
             case .keepCurrentImageWhileLoading: keepCurrentImageWhileLoading = true
             case .onlyLoadFirstFrame: onlyLoadFirstFrame = true
             case .cacheOriginalImage: cacheOriginalImage = true
